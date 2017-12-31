@@ -104,5 +104,45 @@ public class RequestUtils
     {
       return paramPairs;
     }
+
+    @Override
+    public boolean equals(Object o)
+    {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+
+      ParamPairs that = (ParamPairs) o;
+
+      return paramPairs.equals(that.paramPairs);
+    }
+
+    @Override
+    public int hashCode()
+    {
+      return paramPairs.hashCode();
+    }
+
+    @Override
+    public String toString()
+    {
+      final StringBuilder sb = new StringBuilder("[");
+      String sep = "";
+
+      for (ParamPair paramPair: paramPairs) {
+        sb.append(paramPair.toString());
+        sb.append(sep);
+        sep = ", ";
+      }
+
+      sb.append("]");
+
+      return "ParamPairs{" +
+          "paramPairs=" + sb.toString() +
+          '}';
+    }
   }
 }

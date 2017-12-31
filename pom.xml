@@ -51,9 +51,14 @@
       <version>${aws.version}</version>
       <scope>provided</scope>
     </dependency>
+
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.streamsimple</groupId>
+      <artifactId>awsutils-test</artifactId>
     </dependency>
   </dependencies>
 </project>
