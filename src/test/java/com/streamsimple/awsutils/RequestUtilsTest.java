@@ -7,6 +7,8 @@ import java.util.Set;
 
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
+import com.streamsimple.categories.AWSTest;
 
 public class RequestUtilsTest
 {
@@ -39,5 +41,11 @@ public class RequestUtilsTest
     final RequestUtils.ParamPairs actual = RequestUtils.createTagFilterParamPairs(tagSet);
 
     Assert.assertEquals(expected, actual);
+  }
+
+  @Category(AWSTest.class)
+  public void testAddTagFilters()
+  {
+
   }
 }
