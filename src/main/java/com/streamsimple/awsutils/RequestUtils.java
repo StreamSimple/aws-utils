@@ -7,17 +7,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import com.amazonaws.AmazonWebServiceRequest;
 
 public class RequestUtils
 {
+  public static final Pattern FILTER_INDEX_PATTERN = Pattern.compile("^Filter\\.(\\d+)\\..*");
+
   /**
    * There can only be one value for each key.
    * @param tagSet
    * @return
    */
-  public static ParamPairs createTagAddParamPairs(Set<Tag> tagSet)
+  public static ParamPairs createTagAddParamPairs(final Set<Tag> tagSet)
   {
     final List<ParamPair> paramPairs = new ArrayList<>();
     // Validate that there is only one value for each key.
@@ -66,8 +70,13 @@ public class RequestUtils
     return String.format("Tags.member.%d.Value", tagIndex);
   }
 
-  public static ParamPairs createTagFilterParamPairs(Set<Tag> tagSet)
+  public static ParamPairs createTagFilterParamPairs(final int startIndex, final Set<Tag> tagSet)
   {
+    if (startIndex < 1) {
+      final String message = String.format("Start index was %d, but must be greater than or equal to 1", startIndex);
+      throw new IllegalArgumentException(message);
+    }
+
     final List<ParamPair> paramPairs = new ArrayList<>();
     final List<Tag> tagList = new ArrayList<>();
     tagList.addAll(tagSet);
@@ -86,7 +95,7 @@ public class RequestUtils
       values.add(tag.getValue());
     }
 
-    int keyFilterIndex = 1; // Amazon filter indexes start at 1.
+    int keyFilterIndex = startIndex; // Amazon filter indexes start at 1.
 
     for (Map.Entry<String, List<String>> entry: tagMap.entrySet()) {
       final String nameParamKey = createFilterNameParam(keyFilterIndex);
@@ -108,10 +117,80 @@ public class RequestUtils
     return new ParamPairs(paramPairs);
   }
 
-  public static void addTagFilters(Set<Tag> tagSet, AmazonWebServiceRequest request)
+  public static void addTagFilters(final Set<Tag> tagSet, final AmazonWebServiceRequest request)
   {
-    final ParamPairs paramPairs = createTagFilterParamPairs(tagSet);
+    final int startIndex = getNextFilterIndex(request);
+    final ParamPairs paramPairs = createTagFilterParamPairs(startIndex, tagSet);
     addParamPairs(paramPairs, request);
+  }
+
+  public static void addPropertyFilter(final AmazonWebServiceRequest request,
+                                       final String name, final String value, final String... values)
+  {
+    final int startIndex = getNextFilterIndex(request);
+    final ParamPairs paramPairs = createPropertyFilterParamPairs(startIndex, name, value, values);
+    addParamPairs(paramPairs, request);
+  }
+
+  public static ParamPairs createPropertyFilterParamPairs(final int startIndex,
+                                                          final String name,
+                                                          final String value,
+                                                          final String... values)
+  {
+    final List<ParamPair> paramPairs = new ArrayList<>();
+    final String[] valueArr = new String[1 + values.length];
+    valueArr[0] = value;
+
+    for (int index = 0; index < values.length; index++) {
+      valueArr[index + 1] = values[index];
+    }
+
+    final String filterNameParam = createFilterNameParam(startIndex);
+    paramPairs.add(new ParamPair(filterNameParam, name));
+
+    for (int valueIndex = 0; valueIndex < valueArr.length; valueIndex++) {
+      final String valueAtIndex = valueArr[valueIndex];
+      final String filterValueParam = createFilterValueParam(startIndex, valueIndex + 1);
+      paramPairs.add(new ParamPair(filterValueParam, valueAtIndex));
+    }
+
+    return new ParamPairs(paramPairs);
+  }
+
+  public static int getMaxFilterIndex(final AmazonWebServiceRequest request)
+  {
+    return getMaxFilterIndex(request.getCustomQueryParameters());
+  }
+
+  public static int getNextFilterIndex(final AmazonWebServiceRequest request)
+  {
+    int maxIndex = getMaxFilterIndex(request);
+    return maxIndex < 0? 1: maxIndex + 1;
+  }
+
+  public static int getMaxFilterIndex(final Map<String, List<String>> params)
+  {
+    int maxIndex = -1;
+
+    if (params == null) {
+      return maxIndex;
+    }
+
+    for (String key: params.keySet()) {
+      final Matcher matcher = FILTER_INDEX_PATTERN.matcher(key);
+
+      if (!matcher.matches()) {
+        continue;
+      }
+
+      int index = Integer.parseInt(matcher.group(1));
+
+      if (maxIndex < index) {
+        maxIndex = index;
+      }
+    }
+
+    return maxIndex;
   }
 
   private static void addParamPairs(final ParamPairs paramPairs, final AmazonWebServiceRequest request)

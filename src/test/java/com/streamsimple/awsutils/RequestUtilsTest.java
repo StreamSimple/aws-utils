@@ -4,10 +4,13 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
+import java.util.regex.Matcher;
 
 import org.apache.commons.codec.Charsets;
 import org.junit.Assert;
@@ -17,17 +20,18 @@ import org.junit.experimental.categories.Category;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.cloudformation.AmazonCloudFormation;
 import com.amazonaws.services.cloudformation.AmazonCloudFormationClientBuilder;
+import com.amazonaws.services.cloudformation.model.CreateStackInstancesRequest;
 import com.amazonaws.services.cloudformation.model.CreateStackRequest;
 import com.amazonaws.services.cloudformation.model.CreateStackResult;
 import com.amazonaws.services.cloudformation.model.DeleteStackRequest;
 import com.amazonaws.services.cloudformation.model.DescribeStackEventsRequest;
 import com.amazonaws.services.cloudformation.model.DescribeStackEventsResult;
 import com.amazonaws.services.cloudformation.model.DescribeStacksRequest;
-import com.amazonaws.services.cloudformation.model.ListStacksRequest;
-import com.amazonaws.services.cloudformation.model.ListStacksResult;
+import com.amazonaws.services.cloudformation.model.DescribeStacksResult;
 import com.amazonaws.services.cloudformation.model.ResourceStatus;
+import com.amazonaws.services.cloudformation.model.Stack;
 import com.amazonaws.services.cloudformation.model.StackEvent;
-import com.amazonaws.services.cloudformation.model.StackSummary;
+import com.amazonaws.services.cloudformation.model.StackStatus;
 import com.streamsimple.awsutilstest.AWSUtils;
 import com.streamsimple.categories.AWSTest;
 import com.streamsimple.commons.io.FileUtils;
@@ -49,20 +53,20 @@ public class RequestUtilsTest
     tagSet.add(new Tag("keyD", "valueB"));
 
     final List<RequestUtils.ParamPair> epp = new ArrayList<>();
-    epp.add(new RequestUtils.ParamPair("Filter.1.Name", "tag:keyA"));
-    epp.add(new RequestUtils.ParamPair("Filter.1.Value.1", "valueA"));
-    epp.add(new RequestUtils.ParamPair("Filter.1.Value.2", "valueB"));
-    epp.add(new RequestUtils.ParamPair("Filter.1.Value.3", "valueC"));
-    epp.add(new RequestUtils.ParamPair("Filter.2.Name", "tag:keyB"));
-    epp.add(new RequestUtils.ParamPair("Filter.2.Value.1", "valueAA"));
-    epp.add(new RequestUtils.ParamPair("Filter.3.Name", "tag:keyC"));
-    epp.add(new RequestUtils.ParamPair("Filter.3.Value.1", "valueBB"));
-    epp.add(new RequestUtils.ParamPair("Filter.4.Name", "tag:keyD"));
-    epp.add(new RequestUtils.ParamPair("Filter.4.Value.1", "valueA"));
-    epp.add(new RequestUtils.ParamPair("Filter.4.Value.2", "valueB"));
+    epp.add(new RequestUtils.ParamPair("Filter.2.Name", "tag:keyA"));
+    epp.add(new RequestUtils.ParamPair("Filter.2.Value.1", "valueA"));
+    epp.add(new RequestUtils.ParamPair("Filter.2.Value.2", "valueB"));
+    epp.add(new RequestUtils.ParamPair("Filter.2.Value.3", "valueC"));
+    epp.add(new RequestUtils.ParamPair("Filter.3.Name", "tag:keyB"));
+    epp.add(new RequestUtils.ParamPair("Filter.3.Value.1", "valueAA"));
+    epp.add(new RequestUtils.ParamPair("Filter.4.Name", "tag:keyC"));
+    epp.add(new RequestUtils.ParamPair("Filter.4.Value.1", "valueBB"));
+    epp.add(new RequestUtils.ParamPair("Filter.5.Name", "tag:keyD"));
+    epp.add(new RequestUtils.ParamPair("Filter.5.Value.1", "valueA"));
+    epp.add(new RequestUtils.ParamPair("Filter.5.Value.2", "valueB"));
 
     final RequestUtils.ParamPairs expected = new RequestUtils.ParamPairs(epp);
-    final RequestUtils.ParamPairs actual = RequestUtils.createTagFilterParamPairs(tagSet);
+    final RequestUtils.ParamPairs actual = RequestUtils.createTagFilterParamPairs(2, tagSet);
 
     Assert.assertEquals(expected, actual);
   }
@@ -92,13 +96,86 @@ public class RequestUtilsTest
     Assert.assertEquals(expected, actual);
   }
 
+  @Test
+  public void testCreatePropertyFilterParamPairs()
+  {
+    final List<RequestUtils.ParamPair> epp = new ArrayList<>();
+    epp.add(new RequestUtils.ParamPair("Filter.3.Name", "myProp"));
+    epp.add(new RequestUtils.ParamPair("Filter.3.Value.1", "val1"));
+    epp.add(new RequestUtils.ParamPair("Filter.3.Value.2", "val2"));
+    epp.add(new RequestUtils.ParamPair("Filter.3.Value.3", "val3"));
+    epp.add(new RequestUtils.ParamPair("Filter.3.Value.4", "val4"));
+
+    final RequestUtils.ParamPairs expected = new RequestUtils.ParamPairs(epp);
+    final RequestUtils.ParamPairs actual = RequestUtils.createPropertyFilterParamPairs(3,
+        "myProp", "val1", "val2", "val3", "val4");
+
+    Assert.assertEquals(expected, actual);
+  }
+
+  @Test
+  public void testFilterIndexPattern1()
+  {
+    final Matcher matcher = RequestUtils.FILTER_INDEX_PATTERN.matcher("Filter.3.A_:");
+
+    Assert.assertTrue(matcher.matches());
+    Assert.assertEquals(3, Integer.parseInt(matcher.group(1)));
+  }
+
+  @Test
+  public void testFilterIndexPattern2()
+  {
+    final Matcher matcher = RequestUtils.FILTER_INDEX_PATTERN.matcher("a.Filter.3.A_:");
+
+    Assert.assertFalse(matcher.matches());
+  }
+
+  @Test
+  public void testFilterIndexPattern3()
+  {
+    final Matcher matcher = RequestUtils.FILTER_INDEX_PATTERN.matcher("Filter.5.a.b.c");
+
+    Assert.assertTrue(matcher.matches());
+    Assert.assertEquals(5, Integer.parseInt(matcher.group(1)));
+  }
+
+  @Test
+  public void testGetMaxFilterIndexNoMaxIndex()
+  {
+    final Map<String, List<String>> map = new HashMap<>();
+
+    map.put("a", new ArrayList<String>());
+
+    final int expected = -1;
+    final int actual = RequestUtils.getMaxFilterIndex(map);
+
+    Assert.assertEquals(expected, actual);
+  }
+
+  @Test
+  public void testGetMaxFilterIndex()
+  {
+    final Map<String, List<String>> map = new HashMap<>();
+
+    map.put("Filter.1.a.b.c", new ArrayList<String>());
+    map.put("Filter.1.va.b.c", new ArrayList<String>());
+    map.put("Filter.2.5.b.c", new ArrayList<String>());
+    map.put("Filter.3.1.b.c", new ArrayList<String>());
+    map.put("Filter.4.2.b.c", new ArrayList<String>());
+
+    final int expected = 4;
+    final int actual = RequestUtils.getMaxFilterIndex(map);
+
+    Assert.assertEquals(expected, actual);
+  }
+
   /**
    * <b>Note:</b> If the test fails, delete any created stacks manually from the aws cli or console to avoid leaking
    * resources.
    */
   @Category(AWSTest.class)
   @Test
-  public void testFilterTags() throws IOException, TimeoutException
+  public void testTagAndPropertyFilters() throws IOException, TimeoutException
   {
     final String region = AWSUtils.getAWSRegion();
     final AWSCredentialsProvider provider = AWSUtils.getCredentialsProvider();
@@ -114,8 +191,8 @@ public class RequestUtilsTest
     final Tag tag1 = new Tag("ResourceType", "IntegrationTest1");
     final Tag tag2 = new Tag("ResourceType", "IntegrationTest2");
 
-    final String id1 = createTagStack(client, tag1, template);
-    final String id2 = createTagStack(client, tag2, template);
+    final String id1 = createTagStack(1, client, tag1, template);
+    final String id2 = createTagStack(2, client, tag2, template);
 
     final Set<String> expected1 = new HashSet<>();
     final Set<String> expected2 = new HashSet<>();
@@ -126,17 +203,17 @@ public class RequestUtilsTest
     final Set<String> actual1 = getStacksWithTag(tag1, client);
     final Set<String> actual2 = getStacksWithTag(tag2, client);
 
-    Assert.assertEquals(expected1, actual1);
-    Assert.assertEquals(expected2, actual2);
-
     try {
+      Assert.assertEquals(expected1, actual1);
+      Assert.assertEquals(expected2, actual2);
     } finally {
       deleteStack(id1, client);
       deleteStack(id2, client);
     }
   }
 
-  private String createTagStack(final AmazonCloudFormation client,
+  private String createTagStack(int seqNo,
+                                final AmazonCloudFormation client,
                                 final Tag tag,
                                 final String template) throws IOException, TimeoutException
   {
@@ -144,7 +221,7 @@ public class RequestUtilsTest
         new com.amazonaws.services.cloudformation.model.Tag()
         .withKey(tag.getKey())
         .withValue(tag.getValue());
-    final String stackName = "TestDeploy_" + System.currentTimeMillis() + "_1";
+    final String stackName = "TestDeploy" + System.currentTimeMillis() + "" + seqNo;
     final CreateStackRequest request = new CreateStackRequest()
         .withStackName(stackName)
         .withTags(modelTag)
@@ -199,17 +276,20 @@ public class RequestUtilsTest
 
   private Set<String> getStacksWithTag(final Tag tag, final AmazonCloudFormation client)
   {
-    final ListStacksRequest request = new ListStacksRequest();
+    final DescribeStacksRequest request = new DescribeStacksRequest();
     final Set<Tag> tagSet = new HashSet<>();
     tagSet.add(tag);
 
     RequestUtils.addTagFilters(tagSet, request);
+    RequestUtils.addPropertyFilter(request, "stackStatus", StackStatus.CREATE_COMPLETE.name());
 
-    final ListStacksResult result = client.listStacks(request);
+    System.out.println(request.getCustomQueryParameters());
+
+    final DescribeStacksResult result = client.describeStacks();
     final Set<String> stackIds = new HashSet<>();
 
-    for (final StackSummary stackSummary: result.getStackSummaries()) {
-      stackIds.add(stackSummary.getStackId());
+    for (final Stack stack: result.getStacks()) {
+      stackIds.add(stack.getStackId());
     }
 
     return stackIds;
