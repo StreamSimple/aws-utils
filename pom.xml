@@ -57,12 +57,32 @@
     </dependency>
 
     <dependency>
+      <groupId>com.amazonaws</groupId>
+      <artifactId>aws-java-sdk-cloudformation</artifactId>
+      <version>${aws.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
     </dependency>
     <dependency>
       <groupId>com.streamsimple</groupId>
       <artifactId>awsutils-test</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.streamsimple</groupId>
+      <artifactId>javautil-test</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.streamsimple.shade</groupId>
+      <artifactId>commons-io</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.streamsimple</groupId>
+      <artifactId>javautil</artifactId>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 </project>

@@ -20,5 +20,5 @@ In order to run integration tests you must setup the following on **AWS**:
 To run all the tests including integration tests do:
 
 ```
-mvn clean install -DexcludedGroups=""
+env AWS_REGION=us-west-1 AWS_ACCESS_KEY=`aws configure get aws_access_key_id` AWS_SECRET_KEY=`aws configure get aws_secret_access_key` mvn clean install -DexcludedGroups=""
 ```

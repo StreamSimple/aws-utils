@@ -2,6 +2,7 @@ package com.streamsimple.awsutils;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -11,6 +12,60 @@ import com.amazonaws.AmazonWebServiceRequest;
 
 public class RequestUtils
 {
+  /**
+   * There can only be one value for each key.
+   * @param tagSet
+   * @return
+   */
+  public static ParamPairs createTagAddParamPairs(Set<Tag> tagSet)
+  {
+    final List<ParamPair> paramPairs = new ArrayList<>();
+    // Validate that there is only one value for each key.
+    final Set<String> keyToTag = new HashSet<>();
+
+    for (Tag tag: tagSet) {
+      if (!keyToTag.add(tag.getKey())) {
+        final String message = String.format("Duplicate key %s", tag.getKey());
+        throw new IllegalArgumentException(message);
+      }
+    }
+
+    final List<Tag> tagList = new ArrayList<>();
+    tagList.addAll(tagSet);
+    Collections.sort(tagList, Tag.Comparator.INSTANCE);
+
+    // AWS Tag indices start at 1
+    for (int tagIndex = 1; tagIndex <= tagList.size(); tagIndex++) {
+      final Tag tag = tagList.get(tagIndex - 1);
+      final String tagKeyParam = createTagKeyParam(tagIndex);
+      final String tagValueParam = createTagValueParam(tagIndex);
+
+      final ParamPair keyParamPair = new ParamPair(tagKeyParam, tag.getKey());
+      final ParamPair valueParamPair = new ParamPair(tagValueParam, tag.getValue());
+
+      paramPairs.add(keyParamPair);
+      paramPairs.add(valueParamPair);
+    }
+
+    return new ParamPairs(paramPairs);
+  }
+
+  public static void addTags(Set<Tag> tagSet, AmazonWebServiceRequest request)
+  {
+    final ParamPairs paramPairs = createTagAddParamPairs(tagSet);
+    addParamPairs(paramPairs, request);
+  }
+
+  public static String createTagKeyParam(int tagIndex)
+  {
+    return String.format("Tags.member.%d.Key", tagIndex);
+  }
+
+  public static String createTagValueParam(int tagIndex)
+  {
+    return String.format("Tags.member.%d.Value", tagIndex);
+  }
+
   public static ParamPairs createTagFilterParamPairs(Set<Tag> tagSet)
   {
     final List<ParamPair> paramPairs = new ArrayList<>();
@@ -56,7 +111,11 @@ public class RequestUtils
   public static void addTagFilters(Set<Tag> tagSet, AmazonWebServiceRequest request)
   {
     final ParamPairs paramPairs = createTagFilterParamPairs(tagSet);
+    addParamPairs(paramPairs, request);
+  }
 
+  private static void addParamPairs(final ParamPairs paramPairs, final AmazonWebServiceRequest request)
+  {
     for (ParamPair paramPair: paramPairs.getParamPairs()) {
       request.putCustomQueryParameter(paramPair.getKey(), paramPair.getValue());
     }
