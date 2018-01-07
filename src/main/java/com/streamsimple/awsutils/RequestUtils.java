@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.streamsimple.awsutils;
 
 import java.util.ArrayList;
@@ -125,7 +142,7 @@ public class RequestUtils
   }
 
   public static void addPropertyFilter(final AmazonWebServiceRequest request,
-                                       final String name, final String value, final String... values)
+      final String name, final String value, final String... values)
   {
     final int startIndex = getNextFilterIndex(request);
     final ParamPairs paramPairs = createPropertyFilterParamPairs(startIndex, name, value, values);
@@ -133,9 +150,9 @@ public class RequestUtils
   }
 
   public static ParamPairs createPropertyFilterParamPairs(final int startIndex,
-                                                          final String name,
-                                                          final String value,
-                                                          final String... values)
+      final String name,
+      final String value,
+      final String... values)
   {
     final List<ParamPair> paramPairs = new ArrayList<>();
     final String[] valueArr = new String[1 + values.length];
@@ -165,7 +182,7 @@ public class RequestUtils
   public static int getNextFilterIndex(final AmazonWebServiceRequest request)
   {
     int maxIndex = getMaxFilterIndex(request);
-    return maxIndex < 0? 1: maxIndex + 1;
+    return maxIndex < 0 ? 1 : maxIndex + 1;
   }
 
   public static int getMaxFilterIndex(final Map<String, List<String>> params)
@@ -253,7 +270,7 @@ public class RequestUtils
         return false;
       }
 
-      ParamPairs that = (ParamPairs) o;
+      ParamPairs that = (ParamPairs)o;
 
       return paramPairs.equals(that.paramPairs);
     }
